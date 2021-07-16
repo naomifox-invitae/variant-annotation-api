@@ -1,0 +1,92 @@
+openapi: 3.0.1
+info:
+  title: Variant Annotation Service API
+  description: API description in Markdown.
+  version: 1.0.0
+servers:
+  - url: 'https://api.example.com'
+paths:
+  /annotate:
+    post:
+      summary: Returns a list of users.
+      description: Query for annotations
+      requestBody:
+        description: Optional description in *Markdown*
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/VcfRecord'
+              discriminator:
+                propertyName: object_type
+            example:
+              sequence_id: 'refseq:NC_000013.11'
+              pos: '32936731'
+              ref: 'A'
+              alt: 'C'
+              info: '.'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnnotationResponse'
+              example:
+                input:
+                  sequence_id: 'refseq:NC_000013.11'
+                  pos: '32936731'
+                  ref: 'A'
+                  alt: 'C'
+                  info: '.'
+                  object_type: 'vcf_record'
+                annotator: 'awesomemodel_1.0.1'
+                annotation:
+                  classification: 'benign'
+                  probability: 0.9
+
+components:
+  schemas:
+    VcfRecord:
+      type: object
+      required:
+        - sequence_id
+        - pos
+        - ref
+        - alt
+        - object_type
+      properties:
+        sequence_id:
+          type: string
+        pos:
+          type: string
+        ref:
+          type: string
+        alt:
+          type: string
+        info:
+          type: string
+        object_type:
+          enum:
+            - vcf_record
+          type: string
+
+    AnnotationResponse:
+      type: object
+      properties:
+        input:
+          oneOf:
+            - $ref: '#/components/schemas/VcfRecord'
+        annotator:
+          type: string
+        annotation:
+          type: object
+
+
+
+
+
+
+
+
