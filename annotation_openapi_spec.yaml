@@ -1,0 +1,238 @@
+openapi: 3.0.1
+info:
+  title: Variant Annotation Service API
+  description: Proposed API for variant annotation services.
+  version: 1.0.0
+#servers:
+#  - url: 'https://api.example.com'
+paths:
+  /annotate:
+    post:
+      summary: Returns annotation for a single variant.
+      description: Query for annotations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/VcfRecord'
+              discriminator:
+                propertyName: object_type
+            example:
+              sequence_id: 'refseq:NC_000013.11'
+              pos: '32936731'
+              ref: 'A'
+              alt: 'C'
+              info: '.'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnnotationResponse'
+              example:
+                input:
+                  sequence_id: 'refseq:NC_000013.11'
+                  pos: '32936731'
+                  ref: 'A'
+                  alt: 'C'
+                  info: '.'
+                  object_type: 'vcf_record'
+                annotator: 'awesomemodel_1.0.1'
+                annotation:
+                  classification: 'benign'
+                  probability: 0.9
+        '405':
+          description: method not allowed.  Requested annotator is unsupported by this endpoint.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnnotationResponseFail'
+              example:
+                input:
+                  sequence_id: 'refseq:NC_000013.11'
+                  pos: '32936731'
+                  ref: 'A'
+                  alt: 'C'
+                  info: '.'
+                  object_type: 'vcf_record'
+                annotator: 'awesomemodel_1.0.1'
+                status_code: 405,
+                detail: 'awesomemodel_1.0.1 can only be run with batch endpoint'
+  /batch_annotation_request:
+    post:
+      summary: Request batch annotations for a VCF file
+      description: Request batch annotations for a VCF file
+      requestBody:
+        content:
+          # a binary file of type png or jpeg
+          'text/plain':
+            schema:
+              type: string
+              format: binary
+            example:
+              vcf_file: '@my_vcf_file.vcf'
+      responses:
+        '200':
+          description: The VCF submission succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchAnnotationRequestResponse'
+              example:
+                input:
+                  vcf_file: 'my_vcf_file.vcf'
+                annotator: 'awesomemodel_1.0.1'
+                submission_id: '12jvs4n'
+        '40X':
+          description: The VCF submission failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchAnnotationRequestFail'
+              example:
+                input:
+                  vcf_file: 'my_vcf_file.vcf'
+                annotator: 'awesomemodel_1.0.1'
+                detail: 'Something went wrong.  Was that a real VCF file?'
+
+  /batch_annotation_retrieve:
+    post:
+      summary: Retrieve status of a batch annotation request and download link if availabe.
+      description: Use this endpoint to check whether a batch annotation request is available.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchAnnotationRetrievalRequest'
+      responses:
+        '200':
+          description: Request is either is pending or completed status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchAnnotationRetrievalResponse'
+              examples:
+                pending:
+                  value:
+                    input:
+                      submission_id: 123456
+                    status: pending
+                    estimated_time_remaining: 2 hours
+                completed:
+                  value:
+                    input:
+                      submission_id: 123456
+                    status: completed
+                    results_download_link: 's3://path/to/results'
+
+
+components:
+  schemas:
+    VcfRecord:
+      type: object
+      required:
+        - sequence_id
+        - pos
+        - ref
+        - alt
+        - object_type
+      properties:
+        sequence_id:
+          type: string
+        pos:
+          type: string
+        ref:
+          type: string
+        alt:
+          type: string
+        info:
+          type: string
+        object_type:
+          enum:
+            - vcf_record
+          type: string
+
+    AnnotationResponse:
+      type: object
+      properties:
+        input:
+          oneOf:
+            - $ref: '#/components/schemas/VcfRecord'
+        annotator:
+          type: string
+        annotation:
+          type: object
+
+    AnnotationResponseFail:
+      type: object
+      properties:
+        input:
+          oneOf:
+            - $ref: '#/components/schemas/VcfRecord'
+        annotator:
+          type: string
+        detail:
+          type: string
+
+
+    BatchAnnotationRequestResponse:
+      type: object
+      properties:
+        input:
+          type: object
+          properties:
+            vcf_file:
+              type: string
+        annotator:
+          type: string
+        submission_id:
+          type: string
+
+
+    BatchAnnotationRequestFail:
+      type: object
+      properties:
+        input:
+          type: object
+          properties:
+            vcf_file:
+              type: string
+        annotator:
+          type: string
+        detail:
+          type: string
+
+
+    BatchAnnotationRetrievalRequest:
+      type: object
+      properties:
+        submission_id:
+          required: true
+          type: string
+
+    BatchAnnotationRetrievalResponse:
+      type: object
+      properties:
+        input:
+          required: true
+          type: object
+          properties:
+            submission_id:
+              required: true
+              type: string
+        status:
+          required: true
+          type: string
+          enum:
+            - pending
+            - completed
+            - error
+        estimated_time_remaining:
+          required: false
+          type: string
+        results_download_link:
+          type: string
